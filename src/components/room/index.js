@@ -62,6 +62,7 @@ export default class Room extends React.Component {
         recognition.onresult = ({ results }) => {
             if (this.state.channel === 'none' || !this.state.isStreaming) return
             const message = results[results.length - 1][0].transcript.trim()
+            console.log(message)
             db.collection(`rooms/${this.roomId}/chat`).add({
                 message, channel: this.state.channel
             })
