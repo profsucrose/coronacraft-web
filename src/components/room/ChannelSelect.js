@@ -5,7 +5,7 @@ export default (props) => {
         <div>
             <div className="select">
                 <select 
-                    className="channel-select" 
+                    className="menu-button" 
                     onChange={props.onChannelSelect}
                     value={props.value}
                 >

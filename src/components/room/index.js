@@ -1,8 +1,8 @@
 import React from 'react'
-import * as firebase from 'firebase'
+import * as firebase from 'firebase/app'
+import 'firebase/firestore'
 import Logo from '../../static/callcraft-logo.png'
 import ChannelSelect from './ChannelSelect'
-import BrightnessSlider from './BrightnessSlider'
 
 // Firebase
 firebase.initializeApp({
@@ -19,7 +19,7 @@ firebase.initializeApp({
 const db = firebase.firestore()
 
 // Speech recognition
-const SpeechRecognition = window.webkitSpeechRecognition
+var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
 const recognition = new SpeechRecognition()
 
 recognition.continuous = true
@@ -34,7 +34,8 @@ export default class Room extends React.Component {
         channel: 'none', 
         stream: null,
         imageCapture: null,
-        lastMessage: null
+        lastMessage: null,
+        roomExists: null
     }
 
     constructor(props) {
@@ -45,6 +46,13 @@ export default class Room extends React.Component {
     }
 
     componentDidMount() {
+        console.log(`rooms/${this.roomId}`)
+        db.doc(`rooms/${this.roomId}`).get()
+        .then((snapshot) => {
+            this.setState({ roomExists: snapshot.exists })
+        })
+
+
         navigator.mediaDevices.getUserMedia({video: true})
         .then(mediaStream => {
             const stream = mediaStream
@@ -57,9 +65,12 @@ export default class Room extends React.Component {
 
         recognition.start()
         recognition.onnomatch = () => console.log('Word not recognized')
-        recognition.onerror = event => alert(`Error occurred in recognition: ${event.error}` + event.error)
+        recognition.onerror = ({ error }) => {
+            console.log(error)
+        }
 
         recognition.onresult = ({ results }) => {
+            console.log(results[results.length - 1][0].transcript.trim())
             if (this.state.channel === 'none' || !this.state.isStreaming) return
             const message = results[results.length - 1][0].transcript.trim()
             console.log(message)
@@ -109,32 +120,42 @@ export default class Room extends React.Component {
         this.setState({ channel: e.target.value })
     }
 
-    render() {
-        return (
-            <div className="container">
-                <img className="logo" src={Logo} alt="CallCraft" />
-                <h3 className="subtitle is-5">Room <strong>{this.roomId}</strong></h3>
-                <canvas ref={this.video} />
-                <label className="checkbox">
-                    <input 
-                        type="checkbox" 
-                        checked={this.state.isStreaming}
-                        onChange={this.onIsStreamingClicked.bind(this)}
+    getRender() {
+        if (this.state.roomExists == null) return <></>
+        if (this.state.roomExists) { 
+            return (
+                <div className="container-ui">
+                    <img className="logo" src={Logo} alt="CallCraft" />
+                    <h3 className="subtitle">Room <strong>{this.roomId}</strong></h3>
+                    <canvas ref={this.video} />
+                    <label className="checkbox">
+                        <input 
+                            type="checkbox" 
+                            checked={this.state.isStreaming}
+                            onChange={this.onIsStreamingClicked.bind(this)}
+                        />
+                        Is Streaming
+                    </label>
+                    <ChannelSelect
+                        value={this.state.channel}
+                        onChannelSelect={this.onChannelSelect.bind(this)} 
                     />
-                    Is Streaming
-                </label>
-                {/* <BrightnessSlider 
-                    value={this.state.brightness}
-                    onBrightnessChange={this.onBrightnessChange.bind(this)}
-                /> */ }
-                <ChannelSelect 
-                    value={this.state.channel}
-                    onChannelSelect={this.onChannelSelect.bind(this)} 
-                />
-                <img className="extract-img" ref={this.extractImage} alt="" />
-                <a className="button" onClick={this.startStreaming.bind(this)}>Start Streaming to Channel</a>
-            </div>
-        )
+                    <img className="extract-img" ref={this.extractImage} alt="" />
+                    <button className="menu-button" onClick={this.startStreaming.bind(this)}>Start Streaming to Channel</button>
+                </div>
+            )
+        } else {
+            return (
+                <div className="container-ui">
+                     <h1 className="title">Uh oh!</h1>
+                    <h1>Room does not exist!</h1>
+                </div>
+            )
+        }
+    }
+
+    render() {
+        return this.getRender()
     }
     
 }
